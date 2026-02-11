@@ -1,178 +1,234 @@
--- Gonzo Lagger LocalScript
--- Pune in StarterPlayerScripts
+--========================
+-- GONZO NEXT LEVEL SYSTEM
+--========================
+
+local VALID_KEY = "67"
+local KEY_DURATION = 86400 -- 24h
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+
 local player = Players.LocalPlayer
 
-local remote = ReplicatedStorage:WaitForChild("ping")
+--========================
+-- HWID (basic local binding)
+--========================
 
-local running = false
-local intensity = 10
+local function getHWID()
+	return tostring(player.UserId) .. "-" .. tostring(game.PlaceId)
+end
 
--- GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "GonzoLaggerGUI"
-screenGui.Parent = player:WaitForChild("PlayerGui")
+local HWID = getHWID()
 
--- MAIN FRAME
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 350, 0, 220)
-mainFrame.Position = UDim2.new(0.5, -175, 0.5, -110)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Parent = screenGui
-mainFrame.Name = "Gonzo Lagger"
+--========================
+-- SAVE SYSTEM
+--========================
 
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0,12)
+local saveFile = "gonzo_save.json"
 
--- TITLE
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1,0,0,35)
+local function saveData(data)
+	if writefile then
+		writefile(saveFile, HttpService:JSONEncode(data))
+	end
+end
+
+local function loadData()
+	if readfile and isfile and isfile(saveFile) then
+		return HttpService:JSONDecode(readfile(saveFile))
+	end
+	return nil
+end
+
+--========================
+-- BLUR EFFECT
+--========================
+
+local blur = Instance.new("BlurEffect", game.Lighting)
+blur.Size = 0
+
+local function fadeBlur(size)
+	TweenService:Create(blur, TweenInfo.new(0.3), {Size = size}):Play()
+end
+
+--========================
+-- GUI BASE
+--========================
+
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "GonzoNext"
+
+--========================
+-- KEY CHECK
+--========================
+
+local saved = loadData()
+if saved and saved.key == VALID_KEY and saved.hwid == HWID and (os.time() - saved.time) < KEY_DURATION then
+	print("Key valid (cached)")
+else
+
+	fadeBlur(20)
+
+	local keyFrame = Instance.new("Frame", gui)
+	keyFrame.Size = UDim2.new(0,380,0,200)
+	keyFrame.Position = UDim2.new(0.4,0,0.35,0)
+	keyFrame.BackgroundColor3 = Color3.fromRGB(18,18,18)
+	keyFrame.Active = true
+	keyFrame.Draggable = true
+	Instance.new("UICorner", keyFrame).CornerRadius = UDim.new(0,20)
+
+	local gradient = Instance.new("UIGradient", keyFrame)
+	gradient.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(40,40,40)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(15,15,15))
+	}
+
+	local title = Instance.new("TextLabel", keyFrame)
+	title.Size = UDim2.new(1,0,0,40)
+	title.BackgroundTransparency = 1
+	title.Text = "GONZO PREMIUM ACCESS"
+	title.Font = Enum.Font.GothamBold
+	title.TextScaled = true
+	title.TextColor3 = Color3.new(1,1,1)
+
+	local box = Instance.new("TextBox", keyFrame)
+	box.Size = UDim2.new(0.8,0,0,45)
+	box.Position = UDim2.new(0.1,0,0.4,0)
+	box.PlaceholderText = "Enter Key..."
+	box.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	box.TextColor3 = Color3.new(1,1,1)
+	box.Font = Enum.Font.Gotham
+	box.TextScaled = true
+	Instance.new("UICorner", box).CornerRadius = UDim.new(0,14)
+
+	local attempts = 0
+	local btn = Instance.new("TextButton", keyFrame)
+	btn.Size = UDim2.new(0.5,0,0,40)
+	btn.Position = UDim2.new(0.25,0,0.75,0)
+	btn.Text = "VERIFY"
+	btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextScaled = true
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0,14)
+
+	btn.MouseButton1Click:Connect(function()
+		if attempts >= 5 then
+			btn.Text = "COOLDOWN..."
+			task.wait(3)
+			attempts = 0
+			btn.Text = "VERIFY"
+			return
+		end
+
+		if box.Text == VALID_KEY then
+			saveData({
+				key = VALID_KEY,
+				time = os.time(),
+				hwid = HWID
+			})
+			keyFrame:Destroy()
+			fadeBlur(0)
+		else
+			attempts += 1
+			btn.Text = "INVALID"
+			task.wait(1)
+			btn.Text = "VERIFY"
+		end
+	end)
+
+	repeat task.wait() until not keyFrame.Parent
+end
+
+--========================
+-- MAIN PREMIUM UI
+--========================
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0,450,0,280)
+frame.Position = UDim2.new(0.3,0,0.3,0)
+frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+frame.Active = true
+frame.Draggable = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,24)
+
+-- Gradient
+local grad = Instance.new("UIGradient", frame)
+grad.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(35,35,35)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(15,15,15))
+}
+
+-- Title
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1,0,0,40)
 title.BackgroundTransparency = 1
-title.Text = "Gonzo Lagger"
+title.Text = "GONZO LAGGER"
 title.Font = Enum.Font.GothamBold
-title.TextSize = 20
-title.TextColor3 = Color3.fromRGB(255,255,255)
-title.Parent = mainFrame
+title.TextScaled = true
+title.TextColor3 = Color3.new(1,1,1)
 
--- MINIMIZE BUTTON
-local minimize = Instance.new("TextButton")
-minimize.Size = UDim2.new(0,30,0,30)
-minimize.Position = UDim2.new(1,-35,0,5)
-minimize.Text = "-"
-minimize.Font = Enum.Font.GothamBold
-minimize.TextSize = 22
-minimize.BackgroundColor3 = Color3.fromRGB(40,40,40)
-minimize.TextColor3 = Color3.fromRGB(255,255,255)
-minimize.Parent = mainFrame
-Instance.new("UICorner", minimize).CornerRadius = UDim.new(1,0)
+-- Slider
+local slider = Instance.new("Frame", frame)
+slider.Size = UDim2.new(0.8,0,0,12)
+slider.Position = UDim2.new(0.1,0,0.45,0)
+slider.BackgroundColor3 = Color3.fromRGB(45,45,45)
+Instance.new("UICorner", slider).CornerRadius = UDim.new(1,0)
 
--- SLIDER BACK
-local sliderBack = Instance.new("Frame")
-sliderBack.Size = UDim2.new(0.8,0,0,15)
-sliderBack.Position = UDim2.new(0.1,0,0.4,0)
-sliderBack.BackgroundColor3 = Color3.fromRGB(50,50,50)
-sliderBack.Parent = mainFrame
-Instance.new("UICorner", sliderBack).CornerRadius = UDim.new(1,0)
+local fill = Instance.new("Frame", slider)
+fill.Size = UDim2.new(0.5,0,1,0)
+fill.BackgroundColor3 = Color3.fromRGB(120,120,120)
+Instance.new("UICorner", fill).CornerRadius = UDim.new(1,0)
 
--- SLIDER BAR
-local sliderBar = Instance.new("Frame")
-sliderBar.Size = UDim2.new(0.2,0,1,0)
-sliderBar.BackgroundColor3 = Color3.fromRGB(0,170,255)
-sliderBar.Parent = sliderBack
-Instance.new("UICorner", sliderBar).CornerRadius = UDim.new(1,0)
+local intensity = 0.5
 
--- INTENSITY LABEL
-local intensityLabel = Instance.new("TextLabel")
-intensityLabel.Size = UDim2.new(1,0,0,25)
-intensityLabel.Position = UDim2.new(0,0,0.5,0)
-intensityLabel.BackgroundTransparency = 1
-intensityLabel.Text = "Intensity: 10"
-intensityLabel.Font = Enum.Font.Gotham
-intensityLabel.TextSize = 16
-intensityLabel.TextColor3 = Color3.new(1,1,1)
-intensityLabel.Parent = mainFrame
-
--- START BUTTON
-local startButton = Instance.new("TextButton")
-startButton.Size = UDim2.new(0.5,0,0,40)
-startButton.Position = UDim2.new(0.25,0,0.7,0)
-startButton.Text = "START"
-startButton.Font = Enum.Font.GothamBold
-startButton.TextSize = 18
-startButton.BackgroundColor3 = Color3.fromRGB(0,170,0)
-startButton.TextColor3 = Color3.new(1,1,1)
-startButton.Parent = mainFrame
-Instance.new("UICorner", startButton).CornerRadius = UDim.new(0,10)
-
--- RESIZE HANDLE
-local resize = Instance.new("Frame")
-resize.Size = UDim2.new(0,20,0,20)
-resize.Position = UDim2.new(1,-20,1,-20)
-resize.BackgroundColor3 = Color3.fromRGB(80,80,80)
-resize.Parent = mainFrame
-
-local resizing = false
-
-resize.InputBegan:Connect(function(input)
+slider.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		resizing = true
-	end
-end)
-
-resize.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		resizing = false
-	end
-end)
-
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-	if resizing and input.UserInputType == Enum.UserInputType.MouseMovement then
-		mainFrame.Size = UDim2.new(0,
-			math.clamp(input.Position.X - mainFrame.AbsolutePosition.X,200,600),
-			0,
-			math.clamp(input.Position.Y - mainFrame.AbsolutePosition.Y,150,400)
-		)
-	end
-end)
-
--- SLIDER FUNCTION
-sliderBack.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		local relative = (input.Position.X - sliderBack.AbsolutePosition.X) / sliderBack.AbsoluteSize.X
-		relative = math.clamp(relative,0,1)
-		sliderBar.Size = UDim2.new(relative,0,1,0)
-		intensity = math.floor(relative * 100)
-		intensityLabel.Text = "Intensity: "..intensity
-	end
-end)
-
--- START FUNCTION
-startButton.MouseButton1Click:Connect(function()
-	running = not running
-	
-	if running then
-		startButton.Text = "STOP"
-		startButton.BackgroundColor3 = Color3.fromRGB(170,0,0)
-		
-		task.spawn(function()
-			while running do
-				for i = 1, intensity do
-					remote:FireServer()
-				end
-				task.wait(0.1)
+		local conn
+		conn = UIS.InputChanged:Connect(function(move)
+			if move.UserInputType == Enum.UserInputType.MouseMovement then
+				local percent = math.clamp(
+					(move.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X,
+					0,1
+				)
+				fill.Size = UDim2.new(percent,0,1,0)
+				intensity = percent
 			end
 		end)
-	else
-		startButton.Text = "START"
-		startButton.BackgroundColor3 = Color3.fromRGB(0,170,0)
+		UIS.InputEnded:Wait()
+		conn:Disconnect()
 	end
 end)
 
--- MINIMIZED BUTTON
-local miniButton = Instance.new("TextButton")
-miniButton.Size = UDim2.new(0,60,0,60)
-miniButton.Position = UDim2.new(0.5,-30,0.5,-30)
-miniButton.Text = "G"
-miniButton.Visible = false
-miniButton.BackgroundColor3 = Color3.fromRGB(0,170,255)
-miniButton.TextColor3 = Color3.new(1,1,1)
-miniButton.Font = Enum.Font.GothamBold
-miniButton.TextSize = 30
-miniButton.Parent = screenGui
-miniButton.Active = true
-miniButton.Draggable = true
-Instance.new("UICorner", miniButton).CornerRadius = UDim.new(1,0)
+-- START SAFE LOOP
+local btn = Instance.new("TextButton", frame)
+btn.Size = UDim2.new(0.5,0,0,45)
+btn.Position = UDim2.new(0.25,0,0.65,0)
+btn.Text = "START"
+btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+btn.TextColor3 = Color3.new(1,1,1)
+btn.Font = Enum.Font.GothamBold
+btn.TextScaled = true
+Instance.new("UICorner", btn).CornerRadius = UDim.new(0,18)
 
-minimize.MouseButton1Click:Connect(function()
-	mainFrame.Visible = false
-	miniButton.Visible = true
-end)
+local running = false
+local connection
 
-miniButton.MouseButton1Click:Connect(function()
-	mainFrame.Visible = true
-	miniButton.Visible = false
+btn.MouseButton1Click:Connect(function()
+	running = not running
+	btn.Text = running and "STOP" or "START"
+
+	if running then
+		connection = RunService.RenderStepped:Connect(function()
+			local pingStat = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]
+			if pingStat then
+				title.Text = "GONZO LAGGER | Ping: ".. math.floor(pingStat:GetValue()) .." ms"
+			end
+			task.wait(math.clamp(1 - intensity, 0.05, 1))
+		end)
+	else
+		if connection then connection:Disconnect() end
+	end
 end)
