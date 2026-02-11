@@ -202,33 +202,73 @@ slider.InputBegan:Connect(function(input)
 	end
 end)
 
--- START SAFE LOOP
-local btn = Instance.new("TextButton", frame)
-btn.Size = UDim2.new(0.5,0,0,45)
-btn.Position = UDim2.new(0.25,0,0.65,0)
-btn.Text = "START"
-btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
-btn.TextColor3 = Color3.new(1,1,1)
-btn.Font = Enum.Font.GothamBold
-btn.TextScaled = true
-Instance.new("UICorner", btn).CornerRadius = UDim.new(0,18)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local remote = ReplicatedStorage:WaitForChild("StressTestEvent")
 
 local running = false
 local connection
+local rttSum = 0
+local rttCount = 0
+local currentRPS = 10
+
+-- când serverul răspunde
+remote.OnClientEvent:Connect(function(sentTime)
+	local rtt = (tick() - sentTime) * 1000
+	rttSum += rtt
+	rttCount += 1
+end)
+
+-- slider devine control RPS
+slider.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		local conn
+		conn = UIS.InputChanged:Connect(function(move)
+			if move.UserInputType == Enum.UserInputType.MouseMovement then
+				local percent = math.clamp(
+					(move.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X,
+					0,1
+				)
+				fill.Size = UDim2.new(percent,0,1,0)
+				
+				currentRPS = math.floor(5 + percent * 95) -- între 5 și 100 RPS
+				title.Text = "GONZO STRESS | Target RPS: "..currentRPS
+			end
+		end)
+		UIS.InputEnded:Wait()
+		conn:Disconnect()
+	end
+end)
 
 btn.MouseButton1Click:Connect(function()
 	running = not running
 	btn.Text = running and "STOP" or "START"
 
 	if running then
-		connection = RunService.RenderStepped:Connect(function()
-			local pingStat = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]
-			if pingStat then
-				title.Text = "GONZO LAGGER | Ping: ".. math.floor(pingStat:GetValue()) .." ms"
+		connection = task.spawn(function()
+			while running do
+				remote:FireServer(tick())
+				task.wait(1 / currentRPS)
 			end
-			task.wait(math.clamp(1 - intensity, 0.05, 1))
 		end)
+
+		-- afișare statistică live
+		task.spawn(function()
+			while running do
+				task.wait(1)
+				if rttCount > 0 then
+					local avg = rttSum / rttCount
+					title.Text = string.format(
+						"GONZO STRESS | RPS: %d | Avg RTT: %d ms",
+						currentRPS,
+						avg
+					)
+					rttSum = 0
+					rttCount = 0
+				end
+			end
+		end)
+
 	else
-		if connection then connection:Disconnect() end
+		running = false
 	end
 end)
