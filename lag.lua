@@ -1,9 +1,9 @@
 --========================
--- GONZO PREMIUM STRESS TEST
+-- GONZO PREMIUM STRESS TEST - FINAL
 --========================
 
 local VALID_KEY = "67"
-local KEY_DURATION = 86400 -- 24h
+local KEY_DURATION = 86400
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -13,7 +13,7 @@ local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 
 --========================
--- HWID (basic local binding)
+-- HWID
 --========================
 local function getHWID()
 	return tostring(player.UserId) .. "-" .. tostring(game.PlaceId)
@@ -59,7 +59,6 @@ if saved and saved.key == VALID_KEY and saved.hwid == HWID and (os.time() - save
 	print("Key valid (cached)")
 else
 	fadeBlur(20)
-
 	local keyFrame = Instance.new("Frame", gui)
 	keyFrame.Size = UDim2.new(0,380,0,200)
 	keyFrame.Position = UDim2.new(0.4,0,0.35,0)
@@ -138,16 +137,46 @@ frame.Active = true
 frame.Draggable = true
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,24)
 
+-- Glow effect lateral
+local leftGlow = Instance.new("Frame", frame)
+leftGlow.Size = UDim2.new(0,10,1,0)
+leftGlow.Position = UDim2.new(0,0,0,0)
+leftGlow.BackgroundColor3 = Color3.fromRGB(0,255,255)
+Instance.new("UICorner", leftGlow).CornerRadius = UDim.new(1,0)
+
+local rightGlow = Instance.new("Frame", frame)
+rightGlow.Size = UDim2.new(0,10,1,0)
+rightGlow.Position = UDim2.new(1,-10,0,0)
+rightGlow.BackgroundColor3 = Color3.fromRGB(0,255,255)
+Instance.new("UICorner", rightGlow).CornerRadius = UDim.new(1,0)
+
+-- Glow animation
+task.spawn(function()
+	local direction = 1
+	local intensity = 0.1
+	while true do
+		task.wait(0.05)
+		intensity += 0.02 * direction
+		if intensity > 0.5 then direction = -1 end
+		if intensity < 0.1 then direction = 1 end
+		local color = Color3.fromHSV(0.5,1,intensity)
+		leftGlow.BackgroundColor3 = color
+		rightGlow.BackgroundColor3 = color
+	end
+end)
+
+-- Gradient
 local grad = Instance.new("UIGradient", frame)
 grad.Color = ColorSequence.new{
 	ColorSequenceKeypoint.new(0, Color3.fromRGB(35,35,35)),
 	ColorSequenceKeypoint.new(1, Color3.fromRGB(15,15,15))
 }
 
+-- Title
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,0,0,40)
 title.BackgroundTransparency = 1
-title.Text = "GONZO STRESS TEST"
+title.Text = "GONZO LAGGER"
 title.Font = Enum.Font.GothamBold
 title.TextScaled = true
 title.TextColor3 = Color3.new(1,1,1)
@@ -175,7 +204,7 @@ slider.InputBegan:Connect(function(input)
 					0,1
 				)
 				fill.Size = UDim2.new(percent,0,1,0)
-				currentRPS = math.floor(5 + percent * 95) -- 5-100 RPS
+				currentRPS = math.floor(5 + percent * 95)
 				title.Text = "GONZO STRESS | Target RPS: "..currentRPS
 			end
 		end)
@@ -185,61 +214,28 @@ slider.InputBegan:Connect(function(input)
 end)
 
 -- START BUTTON
-local btn = Instance.new("TextButton", frame)
-btn.Size = UDim2.new(0.5,0,0,45)
-btn.Position = UDim2.new(0.25,0,0.65,0)
-btn.Text = "START"
-btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
-btn.TextColor3 = Color3.new(1,1,1)
-btn.Font = Enum.Font.GothamBold
-btn.TextScaled = true
-Instance.new("UICorner", btn).CornerRadius = UDim.new(0,18)
+local startBtn = Instance.new("TextButton", frame)
+startBtn.Size = UDim2.new(0.4,0,0,45)
+startBtn.Position = UDim2.new(0.05,0,0.65,0)
+startBtn.Text = "START"
+startBtn.BackgroundColor3 = Color3.fromRGB(0,200,0)
+startBtn.TextColor3 = Color3.new(1,1,1)
+startBtn.Font = Enum.Font.GothamBold
+startBtn.TextScaled = true
+Instance.new("UICorner", startBtn).CornerRadius = UDim.new(0,18)
 
--- Stress Test logic
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local remote = ReplicatedStorage:WaitForChild("StressTestEvent")
+-- STOP BUTTON
+local stopBtn = Instance.new("TextButton", frame)
+stopBtn.Size = UDim2.new(0.4,0,0,45)
+stopBtn.Position = UDim2.new(0.55,0,0.65,0)
+stopBtn.Text = "STOP"
+stopBtn.BackgroundColor3 = Color3.fromRGB(200,0,0)
+stopBtn.TextColor3 = Color3.new(1,1,1)
+stopBtn.Font = Enum.Font.GothamBold
+stopBtn.TextScaled = true
+Instance.new("UICorner", stopBtn).CornerRadius = UDim.new(0,18)
 
-local running = false
-local rttSum = 0
-local rttCount = 0
-
-remote.OnClientEvent:Connect(function(sentTime)
-	local rtt = (tick() - sentTime) * 1000
-	rttSum += rtt
-	rttCount += 1
-end)
-
-local function stressLoop()
-	while running do
-		remote:FireServer(tick())
-		task.wait(1 / math.max(currentRPS,1))
-	end
-end
-
-btn.MouseButton1Click:Connect(function()
-	running = not running
-	btn.Text = running and "STOP" or "START"
-	if running then
-		task.spawn(stressLoop)
-		task.spawn(function()
-			while running do
-				task.wait(1)
-				if rttCount > 0 then
-					local avg = rttSum / rttCount
-					title.Text = string.format(
-						"GONZO STRESS | RPS: %d | Avg RTT: %d ms",
-						currentRPS,
-						math.floor(avg)
-					)
-					rttSum = 0
-					rttCount = 0
-				end
-			end
-		end)
-	end
-end)
-
--- Minimize Button
+-- Minimize button
 local minimize = Instance.new("TextButton", frame)
 minimize.Size = UDim2.new(0,30,0,30)
 minimize.Position = UDim2.new(1,-40,0,5)
@@ -269,4 +265,50 @@ end)
 miniBtn.MouseButton1Click:Connect(function()
 	frame.Visible = true
 	miniBtn.Visible = false
+end)
+
+-- Stress Test logic
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local remote = ReplicatedStorage:WaitForChild("StressTestEvent")
+
+local running = false
+local rttSum = 0
+local rttCount = 0
+
+remote.OnClientEvent:Connect(function(sentTime)
+	local rtt = (tick() - sentTime) * 1000
+	rttSum += rtt
+	rttCount += 1
+end)
+
+local function stressLoop()
+	while running do
+		remote:FireServer(tick())
+		task.wait(1 / math.max(currentRPS,1))
+	end
+end
+
+startBtn.MouseButton1Click:Connect(function()
+	running = true
+	task.spawn(stressLoop)
+	task.spawn(function()
+		while running do
+			task.wait(1)
+			if rttCount > 0 then
+				local avg = rttSum / rttCount
+				title.Text = string.format(
+					"GONZO STRESS | RPS: %d | Avg RTT: %d ms",
+					currentRPS,
+					math.floor(avg)
+				)
+				rttSum = 0
+				rttCount = 0
+			end
+		end
+	end)
+end)
+
+stopBtn.MouseButton1Click:Connect(function()
+	running = false
+	title.Text = "GONZO STRESS TEST | STOPPED"
 end)
